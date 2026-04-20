@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package vsmr.mars.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+// ============================================================
+// G_MOD06 - ICV (Interactive Control Variable) Service
+// Service instance == single task
+//
+// Contract:
+// - SetICV forwards the command to MARS and returns OK (Empty) if forwarding succeeded.
+// - It does NOT confirm application.
+// - Client confirms application via GetICV / GetAllICVs polling.
+// ============================================================
+
+service InteractiveControl {
+  // ---- counts / discovery ----
+
+  // Total count + per-type counts
+  rpc GetICVTypeSummary(google.protobuf.Empty) returns (ICVTypeSummary) {}
+
+  // ---- snapshots ----
+
+  // All ICV snapshots at once (recommended for UI polling)
+  rpc GetAllICVs(google.protobuf.Empty) returns (ICVSnapshotList) {}
+
+  // Snapshots filtered by type
+  rpc GetICVsByType(ListICVsByTypeRequest) returns (ICVSnapshotList) {}
+
+  // Single ICV snapshot
+  rpc GetICV(GetICVRequest) returns (ICVSnapshot) {}
+
+  // ---- write ----
+
+  // Forward-only command
+  rpc SetICV(SetICVRequest) returns (google.protobuf.Empty) {}
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+// icv_da_ctype meaning (1..8)
+enum ICVType {
+  ICV_TYPE_UNSPECIFIED = 0;
+  TRIP        = 1;
+  VALVE       = 2;
+  FLOWF       = 3;
+  FLOWG       = 4;
+  HEATER      = 5;
+  REACTIVITY  = 6;
+  CNTRLVAR    = 7;
+  TMDPV       = 8;
+}
+
+// External API control mode (meaningful, stable)
+// Server maps this to internal MARS values:
+// - AUTOMATIC     -> 0
+// - MANUAL_TRUE   -> 1
+// - MANUAL_FALSE  -> -1
+enum ControlMode {
+  CONTROL_MODE_UNSPECIFIED = 0;
+  AUTOMATIC = 1;
+  MANUAL_TRUE = 2;
+  MANUAL_FALSE = 3;
+}
+
+// ============================================================
+// Discovery messages
+// ============================================================
+
+message ICVTypeCount {
+  ICVType type = 1;
+  int32 count = 2;
+}
+
+message ICVTypeSummary {
+  // Total number of ICV objects across all types
+  int32 total_count = 1;
+
+  // Per-type counts
+  repeated ICVTypeCount counts = 2;
+}
+
+message ListICVsByTypeRequest {
+  ICVType type = 1;
+}
+
+// ============================================================
+// Snapshot messages (1:1 with g_mod06 icv_da_* fields)
+// ============================================================
+
+message GetICVRequest {
+  int32 object_id = 1;
+}
+
+message ICVSnapshot {
+  int32 object_id = 1;
+
+  // icv_da_whatis(32,199): component description
+  string whatis = 2;
+
+  // icv_da_ctype(2,199): component type (1..8)
+  ICVType ctype = 3;
+
+  // icv_da_cccno(2,199): component no, ccc
+  int32 cccno = 4;
+
+  // icv_da_cmode(2,199): control mode (mapped to enum)
+  ControlMode cmode = 5;
+
+  // icv_da_asis(199): current value
+  double asis = 6;
+
+  // icv_da_target_v(199): target value
+  double target = 7;
+
+  // icv_da_rate_v(199): rate value
+  double rate = 8;
+}
+
+message ICVSnapshotList {
+  repeated ICVSnapshot icvs = 1;
+}
+
+// ============================================================
+// Set (Patch)
+// ============================================================
+
+message SetICVRequest {
+  int32 object_id = 1;
+  ICVPatch patch = 2;
+}
+
+message ICVPatch {
+  // Presence-based partial update
+  // Only fields provided are forwarded.
+
+  google.protobuf.DoubleValue target = 1;
+  google.protobuf.DoubleValue rate = 2;
+
+  // For enum, use oneof to preserve "presence" semantics
+  oneof cmode_patch {
+    ControlMode cmode = 3;
+  }
+}

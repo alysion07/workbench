@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package vsmr.mars.v1;
+
+// Shared containers (NamedValue 기반)
+
+message NamedValue {
+  // Original MARS variable name / key
+  // e.g. "v_da_p", "v_da_tempf", "j_da_mflowj", "icv_da_*", "m_dt"
+  // For minor edit, this can be the user-defined item name/key.
+  string name = 1;
+  double value = 2;
+  string unit = 3;
+}
+
+message NamedValues {
+  repeated NamedValue values = 1;
+}
+
+message ObjectValues {
+  int32 object_id = 1;
+  repeated NamedValue values = 2;
+}
+
+message ObjectIdList {
+  repeated int32 object_ids = 1;
+}

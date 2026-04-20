@@ -1,0 +1,30 @@
+/**
+ * ReactFlow Custom Style Overrides
+ * Auto-connect handle positioning for Old Format (Face 0) connections
+ *
+ * ReactFlow의 .react-flow__handle-right / .react-flow__handle-left CSS 클래스가
+ * 핸들 위치를 설정하므로, !important를 사용해야 인라인 스타일보다 확실히 오버라이드됨.
+ */
+
+/* 위젯 표시 모드에서 NodeResizer 숨김 — 확대된 위젯과 노드 리사이즈 핸들 혼동 방지 */
+.hide-node-resizer .react-flow__resize-control {
+  display: none !important;
+}
+
+/* Auto-connect handle: 노드 중앙에 위치시키는 숨겨진 핸들 */
+.react-flow__handle.auto-connect-center {
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  border: none !important;
+  background: transparent !important;
+  z-index: 8;
+}

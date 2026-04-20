@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package vsmr.mars.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+// ============================================================
+// G_MOD02 - Common Variables Service
+// (Fixed small set: explicit getters)
+// Service instance == single task
+// ============================================================
+
+service CommonVariables {
+  // Common snapshot (optional but convenient)
+  rpc GetSnapshot(google.protobuf.Empty) returns (CVsSnapshot) {}
+
+  // Explicit getters
+  rpc GetTimeHy(google.protobuf.Empty) returns (google.protobuf.DoubleValue) {}
+  rpc GetDt(google.protobuf.Empty) returns (google.protobuf.DoubleValue) {}
+  rpc IsDone(google.protobuf.Empty) returns (google.protobuf.BoolValue) {}
+
+  // If these are integers/enums in MARS, use Int32/Int64 as appropriate.
+  rpc GetProblemType(google.protobuf.Empty) returns (google.protobuf.Int32Value) {}
+  rpc GetProblemOpt(google.protobuf.Empty) returns (google.protobuf.Int32Value) {}
+}
+
+// Snapshot of MARS G_MOD02 common variables.
+message CVsSnapshot {
+  double timehy = 1;       // Current simulation problem time [seconds] (m_timehy)
+  double dt = 2;            // Current time step size [seconds] (m_dt)
+  bool done = 3;            // True when simulation has completed (m_done != 0)
+
+  int32 problem_type = 4;   // Problem type code (m_problem_type)
+  int32 problem_opt = 5;    // Problem option code (m_problem_opt)
+}

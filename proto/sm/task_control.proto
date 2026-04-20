@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package vsmr.sm.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+// ============================================================
+// Task Control Service (internal)
+//
+// One service instance controls exactly one task.
+// Used internally by SimulationManager to fan-out simulation-level
+// control commands to individual task adapters.
+// ============================================================
+
+service TaskControl {
+  // ----- lifecycle control -----
+
+  // CREATED -> RUNNING
+  rpc Start(google.protobuf.Empty) returns (ControlReply) {}
+
+  // RUNNING -> PAUSED
+  rpc Pause(google.protobuf.Empty) returns (ControlReply) {}
+
+  // PAUSED -> RUNNING
+  rpc Resume(google.protobuf.Empty) returns (ControlReply) {}
+
+  // RUNNING / PAUSED -> STOPPED
+  rpc Stop(google.protobuf.Empty) returns (ControlReply) {}
+
+  // ----- state query -----
+
+  // Single source of truth for task state
+  rpc GetState(google.protobuf.Empty) returns (TaskState) {}
+
+  // ----- pacing control -----
+
+  // Set simulation speed ratio.
+  // Negative speed_ratio is rejected (accepted=false).
+  // Re-anchors pacing timing on every call (cumulative debt is reset).
+  rpc SetSimulationSpeed(SetSimulationSpeedRequest) returns (ControlReply) {}
+
+  // Get current target speed ratio (as set by SetSimulationSpeed or CLI --speed-ratio).
+  // Returns 0 for max speed, 1.0 for realtime, etc.
+  rpc GetSimulationSpeed(google.protobuf.Empty)
+      returns (google.protobuf.FloatValue) {}
+}
+
+// ============================================================
+// Replies & State
+// ============================================================
+
+message ControlReply {
+  // true if transition was accepted and applied
+  // false if rejected due to illegal transition
+  bool accepted = 1;
+
+  // Optional explanation
+  // e.g. "cannot pause when state is CREATED"
+  string reason = 2;
+
+  // State AFTER handling the request
+  TaskState state = 3;
+}
+
+message SetSimulationSpeedRequest {
+  // 0 = max speed (no pacing), 1.0 = realtime, 2.0 = 2x speed
+  float speed_ratio = 1;
+}
+
+message TaskState {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    CREATED = 1;
+    RUNNING = 2;
+    PAUSED = 3;
+    COMPLETED = 4;
+    STOPPED = 5;
+  }
+
+  Status status = 1;
+
+  // Optional but useful for UI / debugging
+  int64 last_update_ts_ms = 10;
+
+  // Optional detail (human-readable)
+  string detail = 11;
+}

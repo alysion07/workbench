@@ -1,0 +1,12 @@
+**/node_modules
+.git
+.gitignore
+.vscode
+npm-debug.log
+logs/
+tmp/
+**/.DS_Store
+
+# Ignore build outputs, we re-build inside container
+dist/
+build/

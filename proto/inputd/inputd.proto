@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package vsmr.inputd.v1;
+
+// Inputd Service for validating MARS input data via libMARS_inputd.so
+service InputdService {
+  // Validate MARS input content (indta.i payload).
+  rpc ValidateInputContent(ValidateInputContentRequest) returns (ValidateInputContentResponse);
+}
+
+message ValidateInputContentRequest {
+  // Raw indta.i content.
+  bytes input_content = 1;
+
+  // Optional S3 URI for restart plot file (e.g., s3://bucket/path/to/rstplt).
+  string rstplt_s3_uri = 2;
+}
+
+message ValidateInputContentResponse {
+  bool success = 1;
+  repeated string messages = 2;
+}

@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package vsmr.analysis.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Analysis Service for querying telemetry data stored in InfluxDB.
+service AnalysisService {
+	// Query telemetry points for a task in a time range.
+	rpc GetTelemetries(GetTelemetriesRequest) returns (GetTelemetriesResponse);
+}
+
+// Request for telemetry query.
+// Queries a single variable for a single object in the given time range.
+// The InfluxDB measurement is determined by the server-side TELEMETRY_MEASUREMENT config.
+message GetTelemetriesRequest {
+	// Task identifier (UUID string)
+	string task_id = 1;
+
+	// Inclusive range start time (maps to InfluxDB "timehy" field).
+	google.protobuf.Timestamp start = 2;
+
+	// Inclusive range end time (maps to InfluxDB "timehy" field).
+	google.protobuf.Timestamp end = 3;
+
+	// Target object ID.
+	int32 object_id = 4;
+
+	// Variable name to retrieve.
+	// Example: "v_da_p"
+	string variable_name = 5;
+}
+
+// One telemetry sample at a point in time.
+// Contains the value for the single variable specified in the request.
+message TelemetryPoint {
+	// "timehy" field from the InfluxDB measurement (Unix nanoseconds).
+	int64 timehy = 1;
+	double value = 2;
+}
+
+// Response for telemetry query.
+message GetTelemetriesResponse {
+	repeated TelemetryPoint points = 1;
+}

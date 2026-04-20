@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.vscode/
+.DS_Store
+/public/resource
+*.log
+/.idea
+
+GitHub-Personal-Access-Token.env
+
+# Runtime environment (개인별 생성 - env.template.js 참조)
+public/vsmr-sim-web.pdf

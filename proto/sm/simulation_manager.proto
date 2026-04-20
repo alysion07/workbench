@@ -1,0 +1,257 @@
+syntax = "proto3";
+
+package vsmr.sm.v1;
+
+import "google/protobuf/empty.proto";
+
+// ============================================================
+// Simulation Manager API (vsmr.tm.v1)
+//
+// Overview:
+// - Platform-level simulation orchestration service.
+// - A Simulation is the primary unit of orchestration,
+//   composed of one or more Tasks (e.g. simulator instances).
+// - Single-task simulations (standalone) and multi-task
+//   simulations (co-simulation) share the same API.
+//
+// Design principles:
+// - Builder pattern: CreateSimulation → AddTask(s) → Build.
+// - Build materializes K8s resources; prior calls are staging.
+// - Lifecycle operations are at the Simulation level.
+// - Individual Task control (Start/Pause/Stop, ICV, etc.) is
+//   handled via existing per-adapter gRPC services, routed by
+//   task-id metadata.
+//
+// ID scheme:
+// - sim_id:  UUID generated at CreateSimulation.
+// - task_id: "{sim_id}-{index}" generated at AddTask.
+//
+// Session handling:
+// - A session is created by opening a streaming RPC.
+// - The session remains active as long as the stream is open.
+// - Stream termination implies session termination.
+// - session_id is propagated via gRPC metadata
+//   (e.g. "x-session-id") for subsequent RPC calls.
+// ============================================================
+
+
+// ------------------------------------------------------------
+// StartMode
+//
+// Controls whether the adapter auto-starts the simulation.
+// ------------------------------------------------------------
+enum StartMode {
+  // Append --auto-start to adapter args (default).
+  START_MODE_AUTO = 0;
+
+  // Do not append; client calls Start explicitly.
+  START_MODE_MANUAL = 1;
+}
+
+
+// ------------------------------------------------------------
+// SimulationId
+// ------------------------------------------------------------
+message SimulationId {
+  string sim_id = 1;
+}
+
+
+// ------------------------------------------------------------
+// SessionId
+// ------------------------------------------------------------
+message SessionId {
+  string session_id = 1;
+}
+
+
+// ------------------------------------------------------------
+// TaskId
+// ------------------------------------------------------------
+message TaskId {
+  string task_id = 1;
+}
+
+
+// ------------------------------------------------------------
+// AddTaskRequest
+//
+// Request to add a task to a simulation being built.
+// ------------------------------------------------------------
+message AddTaskRequest {
+  // Simulation to add the task to.
+  string sim_id = 1;
+
+  // Task type / engine identifier (e.g. "mars").
+  string task_type = 2;
+
+  // Command-line style arguments for the task.
+  repeated string args = 3;
+
+  // Start mode for the task (default: AUTO).
+  StartMode start_mode = 4;
+}
+
+
+// ------------------------------------------------------------
+// BuildRequest
+//
+// Request to materialize a simulation.
+// For co-simulation, shared_configs provides S3 URIs for
+// files shared across all tasks (e.g. precice-config.xml).
+// ------------------------------------------------------------
+message BuildRequest {
+  string sim_id = 1;
+
+  // S3 URIs of shared configuration files.
+  repeated string shared_configs = 2;
+}
+
+
+// ------------------------------------------------------------
+// TaskInfo
+//
+// Snapshot-style metadata of a task.
+// ------------------------------------------------------------
+message TaskInfo {
+  string task_id = 1;
+  string task_type = 2;
+}
+
+
+// ------------------------------------------------------------
+// SimulationInfo
+//
+// Snapshot-style metadata of a simulation.
+// ------------------------------------------------------------
+message SimulationInfo {
+  string sim_id = 1;
+  repeated TaskInfo tasks = 2;
+}
+
+
+// ------------------------------------------------------------
+// SimulationInfoList
+// ------------------------------------------------------------
+message SimulationInfoList {
+  repeated SimulationInfo simulations = 1;
+}
+
+
+// ------------------------------------------------------------
+// TaskType
+// ------------------------------------------------------------
+message TaskType {
+  string task_type = 1;
+}
+
+
+// ------------------------------------------------------------
+// TaskTypeList
+// ------------------------------------------------------------
+message TaskTypeList {
+  repeated TaskType task_types = 1;
+}
+
+
+// ============================================================
+// SimulationManager Service
+//
+// Responsibilities:
+// - Create and manage client sessions.
+// - Build simulations via Builder pattern.
+// - Handle task completion and simulation teardown.
+// - Provide discovery APIs for simulations and task types.
+// - Detect client disconnects via streaming RPC.
+// - Clean up orphaned K8s resources via background GC.
+// ============================================================
+service SimulationManager {
+
+  // ----------------------------------------------------------
+  // CreateSession
+  //
+  // Creates a new session and opens a long-lived stream used
+  // to detect client liveness.
+  // ----------------------------------------------------------
+  rpc CreateSession(google.protobuf.Empty)
+      returns (stream SessionId);
+
+
+  // ----------------------------------------------------------
+  // CreateSimulation
+  //
+  // Creates a new empty simulation in BUILDING state.
+  // Must be followed by AddTask(s) and Build.
+  //
+  // Context:
+  // - session_id MUST be provided via gRPC metadata.
+  // ----------------------------------------------------------
+  rpc CreateSimulation(google.protobuf.Empty)
+      returns (SimulationId);
+
+
+  // ----------------------------------------------------------
+  // AddTask
+  //
+  // Adds a task definition to a simulation in BUILDING state.
+  // No K8s resources are created at this point.
+  // Returns a task_id of the form "{sim_id}-{index}".
+  //
+  // Context:
+  // - session_id MUST be provided via gRPC metadata.
+  // ----------------------------------------------------------
+  rpc AddTask(AddTaskRequest)
+      returns (TaskId);
+
+
+  // ----------------------------------------------------------
+  // Build
+  //
+  // Materializes the simulation: provisions K8s resources
+  // (Jobs, Services, gRPC channels) for all added tasks.
+  // For co-simulation, also provisions shared resources
+  // (PVC for exchange directory, ConfigMap for shared configs).
+  //
+  // The simulation type (single vs co-simulation) is
+  // determined by the number of tasks and shared_configs.
+  //
+  // Context:
+  // - session_id MUST be provided via gRPC metadata.
+  // ----------------------------------------------------------
+  rpc Build(BuildRequest)
+      returns (google.protobuf.Empty);
+
+
+  // ----------------------------------------------------------
+  // DeleteTask
+  //
+  // Called by the adapter when a task completes or is stopped.
+  // Cleans up K8s resources (Job, Service, gRPC channel) for
+  // the individual task.
+  //
+  // For co-simulation, the simulation's shared resources
+  // (PVC, ConfigMap) are cleaned up only when ALL tasks in
+  // the simulation have been deleted.
+  // ----------------------------------------------------------
+  rpc DeleteTask(TaskId)
+      returns (google.protobuf.Empty);
+
+
+  // ----------------------------------------------------------
+  // ListSimulations
+  //
+  // Returns a snapshot list of all simulations.
+  // Each simulation includes its task metadata.
+  // ----------------------------------------------------------
+  rpc ListSimulations(google.protobuf.Empty)
+      returns (SimulationInfoList);
+
+
+  // ----------------------------------------------------------
+  // ListTaskTypes
+  //
+  // Returns all registered task types.
+  // ----------------------------------------------------------
+  rpc ListTaskTypes(google.protobuf.Empty)
+      returns (TaskTypeList);
+}

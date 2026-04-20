@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package vsmr.mars.v1;
+
+import "sm/simulation_manager.proto";
+import "sm/simulation_control.proto";
+import "mars/mars_task_common.proto";
+
+
+// ============================================================
+// MarsTaskStream service: Streams MinorEditSnapshot, ScreenLogLine
+// ============================================================
+service MarsTaskStream {
+  rpc SubscribeMinorEdit(vsmr.sm.v1.TaskId) returns (stream MinorEditSnapshot);
+  rpc SubscribeScreenLog(vsmr.sm.v1.TaskId) returns (stream ScreenLogLine);
+  rpc SubscribeSimState(vsmr.sm.v1.TaskId) returns (stream SimState);
+  rpc SubscribeSimulationState(vsmr.sm.v1.SimulationId) returns (stream vsmr.sm.v1.SimulationState);
+}
+
+// ============================================================
+// Kafka publish messages
+// Multiple tasks publish into shared topics -> task_id required
+// ============================================================
+
+// TELEMETRY (G_MOD10, G_MOD21)
+// Topic: telemetry.values.v1
+// Key: task_id (recommended)
+message TelemetryValues {
+  string task_id = 1;  // Task identifier (from --task-id)
+  int64  seq     = 2;  // Monotonically increasing sequence number (per task)
+  int64  ts_ms   = 3;  // Unix Epoch timestamp in milliseconds (wall-clock)
+  int64  timehy  = 4;  // Simulation problem time [ms] (m_timehy × 1000)
+
+  // G_MOD21: VOLUME telemetry
+  repeated ObjectValues volumes = 10;
+
+  // G_MOD10: JUNCTION telemetry
+  repeated ObjectValues junctions = 11;
+}
+
+// UI SCREEN OUTPUT (1 message = 1 line)
+// Topic: ui.screenlog.v1
+// Key: task_id (recommended)
+message ScreenLogLine {
+  string task_id = 1;  // Task identifier (from --task-id)
+  int64  seq     = 2;  // Monotonically increasing sequence number (per task)
+  int64  ts_ms   = 3;  // Unix Epoch timestamp in milliseconds (wall-clock)
+
+  // e.g. "stdout", "stderr", "mars"
+  string channel = 4;
+
+  string line = 10;
+}
+
+// SIMULATION STATE (pacing, speed, status)
+// Topic: ui.simstate.v1
+// Key: task_id (recommended)
+// Periodic simulation state snapshot published by the adapter.
+// UI clients can subscribe to this topic to display real-time status.
+message SimState {
+  string task_id         = 1;  // Task identifier (from --task-id)
+  int64  seq             = 2;  // Monotonically increasing sequence number (per task)
+  int64  ts_ms           = 3;  // Unix Epoch timestamp in milliseconds (wall-clock)
+  int64  timehy          = 4;  // Simulation problem time [ms] (m_timehy × 1000)
+  string status          = 5;  // TaskState.Status name: "RUNNING", "PAUSED", "COMPLETED", "STOPPED"
+  int64  iteration_count = 6;  // Cumulative simulation step count
+  float  target_speed    = 7;  // Configured speed ratio (0=max, 1.0=realtime); set via SetSimulationSpeed
+  float  actual_speed    = 8;  // Measured speed ratio (sim_dt/wall_dt moving average over ~5s window)
+  float  max_speed       = 9;  // Estimated max speed ratio (sim_dt/compute_dt moving average); 0 if unknown
+}
+
+// MINOR EDIT (G_MOD13) - ordered list defined in MARS input
+// Topic: ui.minoredit.v1
+// Key: task_id (recommended)
+message MinorEditSnapshot {
+  string task_id = 1;  // Task identifier (from --task-id)
+  int64  seq     = 2;  // Monotonically increasing sequence number (per task)
+  int64  ts_ms   = 3;  // Unix Epoch timestamp in milliseconds (wall-clock)
+  int64  timehy  = 4;  // Simulation problem time [ms] (m_timehy × 1000)
+
+  // Ordered list, same order as defined in MARS input
+  repeated NamedValue values = 10;
+}

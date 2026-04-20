@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package vsmr.storage.v1;
+
+import "google/protobuf/empty.proto";
+
+// Storage Service for MinIO/S3 Object Storage Operations
+// Provides file and project management functionality for VSMR simulation system
+
+// ============================================================================
+// Service Definition
+// ============================================================================
+
+service StorageService {
+  // Project Operations
+  rpc GetModelInputFiles(GetModelInputFilesRequest) returns (GetModelInputFilesResponse);
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
+
+  // File Operations
+  rpc UploadModelFile(UploadModelFileRequest) returns (UploadFileResponse);
+  rpc UploadProjectFile(UploadProjectFileRequest) returns (UploadFileResponse);
+
+  // Copy a result file (typically rstplt) to another object key
+  rpc CopyFile(CopyFileRequest) returns (CopyFileResponse);
+
+  // Retrieve the list of result files for a specific task
+  rpc ListResultFiles(ListResultFilesRequest) returns (ListResultFilesResponse);
+
+  // Download a file from object storage as a stream
+  rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
+
+  // Download a task result file by project/task/file identifiers as a stream
+  rpc DownloadTaskResultFile(DownloadTaskResultFileRequest) returns (stream DownloadFileResponse);
+}
+
+// ============================================================================
+// Message Definitions
+// ============================================================================
+
+// Request to get model input files in a project
+message GetModelInputFilesRequest {
+  string project_id = 1;    // Project identifier(uuid)
+  string model_id = 2;      // Model identifier(uuid)
+}
+
+// Response containing model input files
+message GetModelInputFilesResponse {
+  FileInfo input_file = 1; // Input file with extension .i
+  FileInfo config_file = 2; // Optional config file with extension .nml
+}
+
+// Request to delete an entire project (folder)
+message DeleteProjectRequest {
+  string project_id = 1;      // Project identifier(uuid)
+}
+
+// Response after project deletion
+message DeleteProjectResponse {
+  bool success = 1;         // Deletion success status
+  int32 files_deleted = 2;  // Number of files deleted
+  string message = 3;       // Status message or error description
+}
+
+// Request to upload a model-scoped file(ex: indta.i, precice_mars.nml)
+message UploadModelFileRequest {
+  string project_id = 1;    // Project identifier(uuid)
+  string model_id = 2;      // Model identifier(uuid)
+  string file_name = 3;     // Target file name
+  bytes content = 4;        // File content as bytes
+  string content_type = 5;  // MIME type (e.g., "text/plain", "application/json")
+}
+
+// Request to upload a project-scoped shared file(precice-config.xml)
+message UploadProjectFileRequest {
+  string project_id = 1;    // Project identifier(uuid)
+  string file_name = 2;     // Target file name
+  bytes content = 3;        // File content as bytes
+  string content_type = 4;  // MIME type (e.g., "text/plain", "application/json")
+}
+
+// Response after file upload
+message UploadFileResponse {
+  bool success = 1;           // Upload success status
+  string object_key = 2;      // Full object key (path) where file was stored
+  string message = 3;         // Status message or error description
+  int64 size = 4;             // Uploaded file size in bytes
+  string file_url = 5;        // Full s3:// URL (s3://bucket/object_key) for use as MARS input_file arg
+}
+
+// Request to copy object
+message CopyFileRequest {
+  string src_object_key = 1;  // Source object key
+  string dst_object_key = 2;  // Destination object key
+}
+
+// Response after file copy
+message CopyFileResponse {
+  bool success = 1;           // Copy success status
+  string message = 2;         // Status message or error description
+}
+
+// Request to list result files
+message ListResultFilesRequest {
+  string project_id = 1;      // Project identifier(uuid)
+  string simulation_id = 2;   // Simulation identifier(uuid)
+  string model_id = 3;        // Model identifier(uuid)
+  int32 task_index = 4;       // Task index within the simulation(starting from 0)
+}
+
+// File info
+message FileInfo {
+  string object_key = 1;       // Full object key in the storage system
+  string file_name = 2;        // File name
+  int64 size = 3;              // File size in bytes
+  string content_type = 4;     // MIME type
+  string last_modified = 5;    // Last modified timestamp (ISO-8601 string)
+}
+
+// Response after file copy
+message ListResultFilesResponse {
+  repeated FileInfo files = 1;  // List of file info associated with the task
+}
+
+// Request to download file
+message DownloadFileRequest {
+  string object_key = 1;        // Object key of the file to download
+}
+
+// Request to download a task result file
+message DownloadTaskResultFileRequest {
+  string project_id = 1;        // Project identifier(uuid)
+  string simulation_id = 2;     // Simulation identifier(uuid)
+  string model_id = 3;          // Model identifier(uuid)
+  int32 task_index = 4;         // Task index within the simulation(starting from 0)
+  string file_name = 5;         // Target file name to download
+}
+
+// Response after file download
+message DownloadFileResponse {
+  FileInfo file = 1;             // file info
+  bytes chunk = 2;               // Binary chunk of the file content
+}

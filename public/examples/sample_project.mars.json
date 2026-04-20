@@ -1,0 +1,205 @@
+{
+  "metadata": {
+    "projectName": "Sample MARS Project",
+    "version": "1.0.0",
+    "created": "2025-10-29T00:00:00.000Z",
+    "modified": "2025-10-29T00:00:00.000Z",
+    "author": "MARS Editor",
+    "description": "샘플 프로젝트 - 기본 노달라이제이션 구조",
+    "simulationType": "transnt",
+    "maxTime": 100.0,
+    "minDt": 1.0e-6,
+    "maxDt": 0.1,
+    "unitSystem": "si",
+    "workingFluid": "h2o"
+  },
+  "nodes": [
+    {
+      "id": "node-inlet",
+      "type": "tmdpvol",
+      "position": {
+        "x": 100,
+        "y": 250
+      },
+      "data": {
+        "componentId": "1000000",
+        "componentName": "inlet_bc",
+        "componentType": "tmdpvol",
+        "parameters": {
+          "name": "inlet_bc",
+          "volume": 1.0,
+          "incAngle": 90,
+          "dz": 1.0,
+          "conditionType": "003",
+          "timeTable": [
+            {
+              "time": 0,
+              "pressure": 15500000,
+              "temperature": 565
+            },
+            {
+              "time": 1000,
+              "pressure": 15500000,
+              "temperature": 565
+            }
+          ]
+        },
+        "status": "valid",
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "id": "node-jun1",
+      "type": "sngljun",
+      "position": {
+        "x": 300,
+        "y": 250
+      },
+      "data": {
+        "componentId": "1100000",
+        "componentName": "jun_inlet",
+        "componentType": "sngljun",
+        "parameters": {
+          "name": "jun_inlet",
+          "from": "1000010002",
+          "to": "1200010001",
+          "area": 0.5,
+          "fwdLoss": 0.5,
+          "revLoss": 0.5
+        },
+        "status": "valid",
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "id": "node-core",
+      "type": "snglvol",
+      "position": {
+        "x": 500,
+        "y": 250
+      },
+      "data": {
+        "componentId": "1200000",
+        "componentName": "core",
+        "componentType": "snglvol",
+        "parameters": {
+          "name": "core",
+          "xLength": 4.0,
+          "volume": 20.0,
+          "incAngle": 90,
+          "dz": 4.0,
+          "hydraulicDiameter": 0.8,
+          "ebt": "003",
+          "pressure": 15500000,
+          "temperature": 570
+        },
+        "status": "valid",
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "id": "node-jun2",
+      "type": "sngljun",
+      "position": {
+        "x": 700,
+        "y": 250
+      },
+      "data": {
+        "componentId": "1300000",
+        "componentName": "jun_outlet",
+        "componentType": "sngljun",
+        "parameters": {
+          "name": "jun_outlet",
+          "from": "1200010002",
+          "to": "1400010001",
+          "area": 0.5,
+          "fwdLoss": 0.5,
+          "revLoss": 0.5
+        },
+        "status": "valid",
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "id": "node-outlet",
+      "type": "tmdpvol",
+      "position": {
+        "x": 900,
+        "y": 250
+      },
+      "data": {
+        "componentId": "1400000",
+        "componentName": "outlet_bc",
+        "componentType": "tmdpvol",
+        "parameters": {
+          "name": "outlet_bc",
+          "volume": 1.0,
+          "incAngle": 90,
+          "dz": 1.0,
+          "conditionType": "003",
+          "timeTable": [
+            {
+              "time": 0,
+              "pressure": 15400000,
+              "temperature": 580
+            },
+            {
+              "time": 1000,
+              "pressure": 15400000,
+              "temperature": 580
+            }
+          ]
+        },
+        "status": "valid",
+        "errors": [],
+        "warnings": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-node-inlet-node-jun1",
+      "source": "node-inlet",
+      "target": "node-jun1",
+      "data": {
+        "junctionId": "1100000",
+        "volumeIdFrom": "1000010002",
+        "volumeIdTo": "1200010001"
+      }
+    },
+    {
+      "id": "reactflow__edge-node-jun1-node-core",
+      "source": "node-jun1",
+      "target": "node-core",
+      "data": {
+        "junctionId": "1100000",
+        "volumeIdFrom": "1000010002",
+        "volumeIdTo": "1200010001"
+      }
+    },
+    {
+      "id": "reactflow__edge-node-core-node-jun2",
+      "source": "node-core",
+      "target": "node-jun2",
+      "data": {
+        "junctionId": "1300000",
+        "volumeIdFrom": "1200010002",
+        "volumeIdTo": "1400010001"
+      }
+    },
+    {
+      "id": "reactflow__edge-node-jun2-node-outlet",
+      "source": "node-jun2",
+      "target": "node-outlet",
+      "data": {
+        "junctionId": "1300000",
+        "volumeIdFrom": "1200010002",
+        "volumeIdTo": "1400010001"
+      }
+    }
+  ]
+}

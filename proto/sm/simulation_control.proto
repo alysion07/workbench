@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package vsmr.sm.v1;
+
+import "google/protobuf/wrappers.proto";
+import "sm/simulation_manager.proto";
+
+// ============================================================
+// Simulation Control API (vsmr.sm.v1)
+//
+// Overview:
+// - Simulation-level lifecycle and pacing control.
+// - Clients use sim_id to control entire simulations.
+// - SM internally delegates to per-task adapter RPCs.
+//
+// Design principles:
+// - sim_id is passed as a message field (not metadata).
+// - Control operations fan-out to all tasks in the simulation.
+// - State is aggregated from individual task states.
+// ============================================================
+
+
+// ------------------------------------------------------------
+// SimulationStatus
+//
+// Simulation-level state machine:
+//   BUILDING → READY → RUNNING ↔ PAUSED → COMPLETED/STOPPED
+// ------------------------------------------------------------
+enum SimulationStatus {
+  SIMULATION_STATUS_BUILDING   = 0;
+  SIMULATION_STATUS_READY      = 1;
+  SIMULATION_STATUS_RUNNING    = 2;
+  SIMULATION_STATUS_PAUSED     = 3;
+  SIMULATION_STATUS_COMPLETED  = 4;
+  SIMULATION_STATUS_STOPPED    = 5;
+}
+
+
+// ------------------------------------------------------------
+// TaskStateInfo
+//
+// Per-task state snapshot within a simulation.
+// ------------------------------------------------------------
+message TaskStateInfo {
+  string task_id = 1;
+  string status  = 2;  // Task-level status (CREATED, RUNNING, etc.)
+}
+
+
+// ------------------------------------------------------------
+// SimulationState
+//
+// Aggregated state of a simulation.
+// ------------------------------------------------------------
+message SimulationState {
+  string sim_id               = 1;
+  SimulationStatus status     = 2;
+  repeated TaskStateInfo tasks = 3;
+}
+
+
+// ------------------------------------------------------------
+// SimulationControlReply
+//
+// Response for state-changing operations.
+// ------------------------------------------------------------
+message SimulationControlReply {
+  bool accepted            = 1;
+  string reason            = 2;
+  SimulationState state    = 3;
+}
+
+
+// ------------------------------------------------------------
+// SetSimSpeedRequest
+// ------------------------------------------------------------
+message SetSimSpeedRequest {
+  string sim_id      = 1;
+  float speed_ratio  = 2;  // 0=max, 1.0=realtime, 2.0=2x
+}
+
+
+// ============================================================
+// SimulationControl Service
+//
+// Responsibilities:
+// - Lifecycle control (Start/Pause/Resume/Stop) at simulation level.
+// - State query aggregated from all tasks.
+// - Pacing control broadcast to all tasks.
+// ============================================================
+service SimulationControl {
+
+  // ----------------------------------------------------------
+  // Start
+  //
+  // Starts all tasks in the simulation.
+  // Transition: READY → RUNNING
+  // ----------------------------------------------------------
+  rpc Start(SimulationId)
+      returns (SimulationControlReply);
+
+  // ----------------------------------------------------------
+  // Pause
+  //
+  // Pauses all tasks in the simulation.
+  // Transition: RUNNING → PAUSED
+  // ----------------------------------------------------------
+  rpc Pause(SimulationId)
+      returns (SimulationControlReply);
+
+  // ----------------------------------------------------------
+  // Resume
+  //
+  // Resumes all tasks in the simulation.
+  // Transition: PAUSED → RUNNING
+  // ----------------------------------------------------------
+  rpc Resume(SimulationId)
+      returns (SimulationControlReply);
+
+  // ----------------------------------------------------------
+  // Stop
+  //
+  // Stops all tasks in the simulation.
+  // Transition: RUNNING/PAUSED → STOPPED
+  // ----------------------------------------------------------
+  rpc Stop(SimulationId)
+      returns (SimulationControlReply);
+
+  // ----------------------------------------------------------
+  // GetState
+  //
+  // Returns aggregated simulation state with per-task breakdown.
+  // ----------------------------------------------------------
+  rpc GetState(SimulationId)
+      returns (SimulationState);
+
+  // ----------------------------------------------------------
+  // SetSimulationSpeed
+  //
+  // Sets speed ratio for all tasks in the simulation.
+  // ----------------------------------------------------------
+  rpc SetSimulationSpeed(SetSimSpeedRequest)
+      returns (SimulationControlReply);
+
+  // ----------------------------------------------------------
+  // GetSimulationSpeed
+  //
+  // Returns the current speed ratio of the simulation.
+  // ----------------------------------------------------------
+  rpc GetSimulationSpeed(SimulationId)
+      returns (google.protobuf.FloatValue);
+}

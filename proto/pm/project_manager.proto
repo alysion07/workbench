@@ -1,0 +1,229 @@
+syntax = "proto3";
+
+package vsmr.pm.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// Project Manager API (vsmr.pm.v1)
+//
+// Backed by PostgreSQL tables:
+// - projects
+// - simulation_history
+// ============================================================
+
+service ProjectManager {
+	// ----------------------------------------------------------
+	// projects CRUD
+	// ----------------------------------------------------------
+	rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+	rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+	rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+	rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
+	rpc DeleteProject(DeleteProjectRequest) returns (google.protobuf.Empty);
+
+	// ----------------------------------------------------------
+	// simulation_history CRUD
+	// ----------------------------------------------------------
+	rpc CreateSimulationHistory(CreateSimulationHistoryRequest)
+			returns (CreateSimulationHistoryResponse);
+	rpc GetSimulationHistory(GetSimulationHistoryRequest)
+			returns (GetSimulationHistoryResponse);
+	rpc ListSimulationHistories(ListSimulationHistoriesRequest)
+			returns (ListSimulationHistoriesResponse);
+	rpc UpdateSimulationHistory(UpdateSimulationHistoryRequest)
+			returns (UpdateSimulationHistoryResponse);
+	rpc DeleteSimulationHistory(DeleteSimulationHistoryRequest)
+			returns (google.protobuf.Empty);
+	rpc ListSimulationHistoriesByUser(ListSimulationHistoriesByUserRequest)
+			returns (ListSimulationHistoriesResponse);
+	rpc ListSimulationHistoriesByProject(ListSimulationHistoriesByProjectRequest)
+			returns (ListSimulationHistoriesResponse);
+}
+
+// ------------------------------------------------------------
+// projects
+// ------------------------------------------------------------
+
+message Project {
+	// projects.id (uuid)
+	string id = 1;
+
+	// projects.user_id (uuid)
+	string user_id = 2;
+
+	// projects.name
+	string name = 3;
+
+	// projects.description
+	string description = 4;
+
+	// projects.data (jsonb serialized as string)
+	string data_json = 5;
+
+	// projects.created_at
+	google.protobuf.Timestamp created_at = 6;
+
+	// projects.updated_at
+	google.protobuf.Timestamp updated_at = 7;
+}
+
+message CreateProjectRequest {
+	string user_id = 1;
+	string name = 2;
+	string description = 3;
+	string data_json = 4;
+}
+
+message CreateProjectResponse {
+	Project project = 1;
+}
+
+message GetProjectRequest {
+	string id = 1;
+}
+
+message GetProjectResponse {
+	Project project = 1;
+}
+
+message ListProjectsRequest {
+	// Optional filter by user_id.
+	string user_id = 1;
+	int32 page_size = 2;
+	string page_token = 3;
+}
+
+message ListProjectsResponse {
+	repeated Project projects = 1;
+	string next_page_token = 2;
+}
+
+message UpdateProjectRequest {
+	// Target project id.
+	string id = 1;
+
+	// Full replacement values for mutable fields.
+	string name = 2;
+	string description = 3;
+	string data_json = 4;
+}
+
+message UpdateProjectResponse {
+	Project project = 1;
+}
+
+message DeleteProjectRequest {
+	string id = 1;
+}
+
+// ------------------------------------------------------------
+// simulation_history
+// ------------------------------------------------------------
+
+message SimulationHistory {
+	// simulation_history.simulation_id (uuid)
+	string simulation_id = 1;
+
+	// simulation_history.project_id (uuid)
+	string project_id = 2;
+
+	// simulation_history.title
+	string title = 3;
+
+	// simulation_history.description
+	string description = 4;
+
+	// simulation_history.start_time
+	google.protobuf.Timestamp start_time = 5;
+
+	// simulation_history.end_time
+	google.protobuf.Timestamp end_time = 6;
+
+	// simulation_history.cpu_time
+	string cpu_time = 7;
+
+	// simulation_history.is_restart
+	bool is_restart = 8;
+
+	// simulation_history.task_ids (uuid)
+	string task_ids = 9;
+
+	// simulation_history.status
+	string status = 10;
+
+	// simulation_history.created_at
+	google.protobuf.Timestamp created_at = 11;
+
+	// simulation_history.updated_at
+	google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreateSimulationHistoryRequest {
+	string project_id = 1;
+	string title = 2;
+	string description = 3;
+	google.protobuf.Timestamp start_time = 4;
+	google.protobuf.Timestamp end_time = 5;
+	string cpu_time = 6;
+	bool is_restart = 7;
+	string restart_source_task_id = 8;
+	string status = 9;
+}
+
+message CreateSimulationHistoryResponse {
+	SimulationHistory simulation_history = 1;
+}
+
+message GetSimulationHistoryRequest {
+	string simulation_id = 1;
+}
+
+message GetSimulationHistoryResponse {
+	SimulationHistory simulation_history = 1;
+}
+
+message ListSimulationHistoriesRequest {
+	// Optional filter by project_id.
+	string project_id = 1;
+	int32 page_size = 2;
+	string page_token = 3;
+}
+
+message ListSimulationHistoriesResponse {
+	repeated SimulationHistory simulation_histories = 1;
+	string next_page_token = 2;
+}
+
+message UpdateSimulationHistoryRequest {
+	string simulation_id = 1;
+	string title = 2;
+	string description = 3;
+	google.protobuf.Timestamp start_time = 4;
+	google.protobuf.Timestamp end_time = 5;
+	string cpu_time = 6;
+	bool is_restart = 7;
+	string restart_source_task_id = 8;
+	string status = 9;
+}
+
+message UpdateSimulationHistoryResponse {
+	SimulationHistory simulation_history = 1;
+}
+
+message DeleteSimulationHistoryRequest {
+	string simulation_id = 1;
+}
+
+message ListSimulationHistoriesByUserRequest {
+	string user_id = 1;
+	int32 page_size = 2;
+	string page_token = 3;
+}
+
+message ListSimulationHistoriesByProjectRequest {
+	string project_id = 1;
+	int32 page_size = 2;
+	string page_token = 3;
+}
