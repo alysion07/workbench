@@ -11,13 +11,14 @@ import {
   Typography,
   ToggleButtonGroup,
   ToggleButton,
-  LinearProgress,
   Divider,
 } from '@mui/material';
+import HeroStrip from './HeroStrip';
+import SpeedSlider from './SpeedSlider';
 import {
-  PauseCircle as PauseIcon,
-  PlayCircle as ResumeIcon,
-  Stop as StopIcon,
+  PauseOutlined as PauseIcon,
+  PlayArrowOutlined as ResumeIcon,
+  StopOutlined as StopIcon,
   UnfoldMore as ExpandIcon,
   UnfoldLess as CollapseIcon,
 } from '@mui/icons-material';
@@ -72,11 +73,6 @@ function formatSpeed(speed: number | undefined): string {
   if (typeof speed !== 'number' || Number.isNaN(speed)) return '--';
   if (speed === 0) return 'MAX';
   return `${speed.toFixed(3)}x`;
-}
-
-function speedRatioToLabel(ratio: number): string {
-  const opt = SPEED_OPTIONS.find((o) => o.ratio === ratio);
-  return opt?.label ?? `${ratio}x`;
 }
 
 // --- Status badge ------------------------------------------------------------
@@ -151,8 +147,13 @@ export default function SimulationControlBar({
     [onSpeedChange],
   );
 
-  const targetSpeed = activeModel?.lastSimState?.target_speed;
-  const selectedSpeed = typeof targetSpeed === 'number' ? targetSpeed : 1;
+  const targetSpeedRaw = activeModel?.lastSimState?.target_speed;
+  const selectedSpeed =
+    typeof targetSpeedRaw === 'number'
+      ? (targetSpeedRaw === 0 ? 10 : targetSpeedRaw)
+      : 1;
+  const compactSelectedSpeed =
+    typeof targetSpeedRaw === 'number' ? targetSpeedRaw : 1;
 
   const compact = mode === 'compact';
   const simState = activeModel?.lastSimState;
@@ -190,102 +191,132 @@ export default function SimulationControlBar({
           {compact ? <ExpandIcon fontSize="small" /> : <CollapseIcon fontSize="small" />}
         </IconButton>
       </Tooltip>
+      {!compact && activeModel && (() => {
+        let progressValue: number | null = null;
+        if (activeModel.progress != null && activeModel.progress >= 0) {
+          progressValue = activeModel.progress;
+        } else if (simState?.timehy != null && maxTime && maxTime > 0) {
+          progressValue = Math.min((simState.timehy / 1000 / maxTime) * 100, 100);
+        }
+
+        return (
+          <HeroStrip
+            status={status}
+            statusBg={colors.bg}
+            statusFg={colors.fg}
+            isActive={isActive}
+            probTimeSeconds={formatTimehy(simState?.timehy)}
+            progressValue={progressValue}
+            elapsedText={formatElapsed(elapsedSeconds)}
+          />
+        );
+      })()}
       {/* Row 1 */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 36 }}>
-        {/* Playback */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-          <Tooltip title="일시중지">
-            <span>
-              <IconButton size="small" color="warning" onClick={onPause} disabled={!canPause}>
-                <PauseIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="재개">
-            <span>
-              <IconButton size="small" color="success" onClick={onResume} disabled={!canResume}>
-                <ResumeIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="중지">
-            <span>
-              <IconButton size="small" color="error" onClick={onStop} disabled={!canStop}>
-                <StopIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: compact ? 36 : 48 }}>
+        {/* Playback — 슬라이더 톤에 맞춰 중성 아웃라인 아이콘 + 은은한 hover accent */}
+        <Box
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.25,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            p: 0.25,
+            bgcolor: 'background.default',
+          }}
+        >
+          {[
+            { title: '일시중지', icon: <PauseIcon fontSize="small" />, onClick: onPause, disabled: !canPause, hoverColor: 'warning.main' },
+            { title: '재개', icon: <ResumeIcon fontSize="small" />, onClick: onResume, disabled: !canResume, hoverColor: 'info.dark' },
+            { title: '중지', icon: <StopIcon fontSize="small" />, onClick: onStop, disabled: !canStop, hoverColor: 'error.main' },
+          ].map(({ title, icon, onClick, disabled, hoverColor }) => (
+            <Tooltip key={title} title={title}>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={onClick}
+                  disabled={disabled}
+                  sx={{
+                    color: 'text.secondary',
+                    borderRadius: '4px',
+                    transition: 'color 0.15s, background-color 0.15s',
+                    '&:hover': { color: hoverColor, bgcolor: 'action.hover' },
+                    '&.Mui-disabled': { opacity: 0.3 },
+                  }}
+                >
+                  {icon}
+                </IconButton>
+              </span>
+            </Tooltip>
+          ))}
         </Box>
 
         <Divider orientation="vertical" flexItem sx={{ mx: 2.5 }} />
 
-        {/* Speed ToggleButtonGroup */}
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={selectedSpeed}
-          onChange={handleSpeedChange}
-          disabled={!canChangeSpeed}
-          sx={{
-            '& .MuiToggleButton-root': {
-              px: 1.25,
-              py: 0.25,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              lineHeight: 1.4,
-              '&.Mui-selected': {
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
-                '&:hover': { bgcolor: 'primary.dark' },
-              },
-            },
-          }}
-        >
-          {SPEED_OPTIONS.map((opt) => {
-            const exceedsMax = hasMaxSpeed && opt.ratio > 0 && opt.ratio > maxSpeed!;
-            return (
-              <Tooltip key={opt.ratio} title={exceedsMax ? `서버 최대 ${formatSpeed(maxSpeed)}` : ''} arrow>
-                <ToggleButton
-                  value={opt.ratio}
-                  sx={exceedsMax ? { opacity: 0.5, fontStyle: 'italic' } : undefined}
-                >
-                  {opt.label}
-                </ToggleButton>
-              </Tooltip>
-            );
-          })}
-        </ToggleButtonGroup>
-
-        <Divider orientation="vertical" flexItem sx={{ mx: 2.5 }} />
-
-        {/* Speed feedback */}
         {compact ? (
-          <Typography variant="caption" sx={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', minWidth: 64 }}>
-            {simState ? `→${formatSpeed(simState.actual_speed)}` : '--'}
-          </Typography>
-        ) : (
-          <Box component="table" sx={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
-            <tbody>
-              {hasMaxSpeed && (
-                <Box component="tr">
-                  <Box component="td" sx={{ pr: 1, color: 'text.secondary', whiteSpace: 'nowrap', py: 0 }}>Max</Box>
-                  <Box component="td" sx={{ textAlign: 'right', whiteSpace: 'nowrap', py: 0, minWidth: 64 }}>{formatSpeed(maxSpeed)}</Box>
-                </Box>
-              )}
-              <Box component="tr">
-                <Box component="td" sx={{ pr: 1, color: 'text.secondary', whiteSpace: 'nowrap', py: 0 }}>Target</Box>
-                <Box component="td" sx={{ textAlign: 'right', whiteSpace: 'nowrap', py: 0, minWidth: 64 }}>{simState ? speedRatioToLabel(selectedSpeed) : '--'}</Box>
-              </Box>
-              <Box component="tr">
-                <Box component="td" sx={{ pr: 1, color: 'text.secondary', whiteSpace: 'nowrap', py: 0 }}>Actual</Box>
-                <Box component="td" sx={{ textAlign: 'right', whiteSpace: 'nowrap', py: 0, minWidth: 64 }}>{simState ? formatSpeed(simState.actual_speed) : '--'}</Box>
-              </Box>
-            </tbody>
-          </Box>
-        )}
+          <>
+            {/* Speed ToggleButtonGroup — compact 전용 */}
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={compactSelectedSpeed}
+              onChange={handleSpeedChange}
+              disabled={!canChangeSpeed}
+              sx={{
+                '& .MuiToggleButton-root': {
+                  px: 1.25,
+                  py: 0.25,
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  lineHeight: 1.4,
+                  '&.Mui-selected': {
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '&:hover': { bgcolor: 'primary.dark' },
+                  },
+                },
+              }}
+            >
+              {SPEED_OPTIONS.map((opt) => {
+                const exceedsMax = hasMaxSpeed && opt.ratio > 0 && opt.ratio > maxSpeed!;
+                return (
+                  <Tooltip key={opt.ratio} title={exceedsMax ? `서버 최대 ${formatSpeed(maxSpeed)}` : ''} arrow>
+                    <ToggleButton
+                      value={opt.ratio}
+                      sx={exceedsMax ? { opacity: 0.5, fontStyle: 'italic' } : undefined}
+                    >
+                      {opt.label}
+                    </ToggleButton>
+                  </Tooltip>
+                );
+              })}
+            </ToggleButtonGroup>
 
-        <Divider orientation="vertical" flexItem sx={{ mx: 2.5 }} />
+            <Divider orientation="vertical" flexItem sx={{ mx: 2.5 }} />
+
+            {/* Speed actual feedback — compact 전용 caption */}
+            <Typography variant="caption" sx={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', minWidth: 64 }}>
+              {simState ? `→${formatSpeed(simState.actual_speed)}` : '--'}
+            </Typography>
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 2.5 }} />
+          </>
+        ) : (
+          <>
+            {/* SpeedSlider — expanded 전용, 내부에 Target/Actual readout 포함 */}
+            <SpeedSlider
+              target={selectedSpeed}
+              actual={simState?.actual_speed}
+              maxSpeed={maxSpeed}
+              disabled={!canChangeSpeed}
+              onChange={onSpeedChange}
+            />
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 2.5 }} />
+          </>
+        )}
 
         {/* Sim info */}
         {compact ? (
@@ -296,111 +327,61 @@ export default function SimulationControlBar({
             <Typography variant="caption" sx={{ minWidth: 56, textAlign: 'right', fontFamily: 'inherit', fontVariantNumeric: 'inherit', whiteSpace: 'nowrap' }}>{simState?.iteration_count?.toLocaleString() ?? '--'}</Typography>
           </Box>
         ) : (
-          <Box component="table" sx={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
-            <tbody>
-              <Box component="tr">
-                <Box component="td" sx={{ pr: 1, color: 'text.secondary', whiteSpace: 'nowrap', py: 0 }}>T</Box>
-                <Box component="td" sx={{ textAlign: 'right', whiteSpace: 'nowrap', py: 0, minWidth: 56 }}>{formatTimehy(simState?.timehy)} s</Box>
-              </Box>
-              <Box component="tr">
-                <Box component="td" sx={{ pr: 1, color: 'text.secondary', whiteSpace: 'nowrap', py: 0 }}>Iter</Box>
-                <Box component="td" sx={{ textAlign: 'right', whiteSpace: 'nowrap', py: 0, minWidth: 56 }}>{simState?.iteration_count?.toLocaleString() ?? '--'}</Box>
-              </Box>
-            </tbody>
+          <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.5, fontFamily: 'monospace', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+            <Box component="span" sx={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+              {simState?.iteration_count?.toLocaleString() ?? '--'}
+            </Box>
+            <Box component="span" sx={{ color: 'text.disabled' }}>steps</Box>
           </Box>
         )}
 
-        <Divider orientation="vertical" flexItem sx={{ mx: 2.5 }} />
-
-        {/* Status + elapsed */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.75,
-              px: 1.25,
-              py: 0.25,
-              borderRadius: 1,
-              bgcolor: activeModel ? colors.bg : 'grey.100',
-              color: activeModel ? colors.fg : 'grey.400',
-            }}
-          >
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                bgcolor: 'currentColor',
-                ...(isActive && {
-                  animation: 'pulse-dot 1.4s ease-in-out infinite',
-                  '@keyframes pulse-dot': {
-                    '0%, 100%': { opacity: 1 },
-                    '50%': { opacity: 0.4 },
-                  },
-                }),
-              }}
-            />
-            <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'uppercase', lineHeight: 1 }}>
-              {activeModel ? status : 'IDLE'}
-            </Typography>
-          </Box>
-          {activeModel && (
-            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-              {formatElapsed(elapsedSeconds)}
-            </Typography>
-          )}
-        </Box>
+        {compact && (
+          <>
+            <Divider orientation="vertical" flexItem sx={{ mx: 2.5 }} />
+            {/* Status + elapsed — compact 모드에서만 표시. expanded 는 HeroStrip 에 위임 */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  px: 1.25,
+                  py: 0.25,
+                  borderRadius: 1,
+                  bgcolor: activeModel ? colors.bg : 'grey.100',
+                  color: activeModel ? colors.fg : 'grey.400',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    bgcolor: 'currentColor',
+                    ...(isActive && {
+                      animation: 'pulse-dot 1.4s ease-in-out infinite',
+                      '@keyframes pulse-dot': {
+                        '0%, 100%': { opacity: 1 },
+                        '50%': { opacity: 0.4 },
+                      },
+                    }),
+                  }}
+                />
+                <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'uppercase', lineHeight: 1 }}>
+                  {activeModel ? status : 'IDLE'}
+                </Typography>
+              </Box>
+              {activeModel && (
+                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                  {formatElapsed(elapsedSeconds)}
+                </Typography>
+              )}
+            </Box>
+          </>
+        )}
 
       </Box>
 
-      {/* Row 2 — expanded mode only: progress bar */}
-      {!compact && (() => {
-        let progressValue: number | null = null;
-        let progressLabel = '';
-
-        if (activeModel?.progress != null && activeModel.progress >= 0) {
-          progressValue = activeModel.progress;
-        } else if (activeModel && simState?.timehy != null && maxTime && maxTime > 0) {
-          const currentTimeSec = simState.timehy / 1000;
-          progressValue = Math.min((currentTimeSec / maxTime) * 100, 100);
-          progressLabel = `${formatTimehy(simState.timehy)}s / ${maxTime}s`;
-        }
-
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 0.75, minHeight: 20, px: 4 }}>
-            {activeModel && progressValue !== null ? (
-              <>
-                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontSize: '0.68rem' }}>
-                  {progressLabel || 'Progress'}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(progressValue, 100)}
-                  sx={{
-                    flexGrow: 1,
-                    maxWidth: 480,
-                    height: 5,
-                    borderRadius: 3,
-                    bgcolor: 'grey.200',
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 3,
-                      bgcolor: status === 'completed' ? 'info.main' : 'primary.main',
-                    },
-                  }}
-                />
-                <Typography variant="caption" sx={{ fontFamily: 'monospace', minWidth: 32, textAlign: 'right', fontSize: '0.68rem' }}>
-                  {Math.round(progressValue)}%
-                </Typography>
-              </>
-            ) : (
-              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
-                {activeModel ? 'Progress 정보 없음' : '시뮬레이션 대기 중'}
-              </Typography>
-            )}
-          </Box>
-        );
-      })()}
     </Box>
   );
 }

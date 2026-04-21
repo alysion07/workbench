@@ -18,7 +18,6 @@ const SngljunNode: React.FC<NodeProps<MARSNodeData>> = ({ data, selected, id }) 
   const clipPath = getShapeClipPath(appearance.shape);
   const borderRadius = getShapeBorderRadius(appearance.shape, appearance.rotation);
   const updateNodeAppearance = useStore((s) => s.updateNodeAppearance);
-  const isRestart = useStore((s) => s.metadata?.globalSettings?.card100?.problemType === 'restart');
   const svgItem = useStore((s) => {
     if (!appearance.svgLibraryId) return undefined;
     return s.svgLibrary.find(item => item.id === appearance.svgLibraryId);
@@ -40,7 +39,7 @@ const SngljunNode: React.FC<NodeProps<MARSNodeData>> = ({ data, selected, id }) 
   return (
     <>
       <NodeResizer
-        isVisible={selected && !isRestart}
+        isVisible={selected}
         minWidth={30}
         minHeight={30}
         lineStyle={{ borderColor: '#1976d2', zIndex: 10 }}

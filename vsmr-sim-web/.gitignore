@@ -6,6 +6,8 @@ dist/
 /public/resource
 *.log
 /.idea
+.worktrees/
+.superpowers/
 
 GitHub-Personal-Access-Token.env
 

@@ -353,10 +353,10 @@ const PropertyPanel: React.FC = () => {
         <Box sx={{ flex: 1, overflow: 'auto' }}>
           {isRestart && (
             <Alert severity="info" sx={{ m: 1, mb: 0 }}>
-              RESTART 모드에서는 컴포넌트 속성을 변경할 수 없습니다.
+              RESTART 모드입니다. 변경 사항은 minor-edit 으로 저장됩니다.
             </Alert>
           )}
-          <Box p={1.5} sx={isRestart ? { pointerEvents: 'none', opacity: 0.6 } : undefined}>
+          <Box p={1.5}>
             {renderForm()}
           </Box>
         </Box>

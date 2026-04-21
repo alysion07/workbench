@@ -1,0 +1,22 @@
+{
+  "name": "vsmr-sim-docs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "roadmap": "node scripts/generate-roadmap.mjs",
+    "roadmap:check": "node scripts/generate-roadmap.mjs --check"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alysion-e8ight/vsmr-sim-docs.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/alysion-e8ight/vsmr-sim-docs/issues"
+  },
+  "homepage": "https://github.com/alysion-e8ight/vsmr-sim-docs#readme"
+}

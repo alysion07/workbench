@@ -27,7 +27,6 @@ import SvgNodeShape from '../common/SvgNodeShape';
 
 const PipeNode: React.FC<NodeProps<MARSNodeData>> = ({ data, selected, id }) => {
   const updateNodeAppearance = useStore((s) => s.updateNodeAppearance);
-  const isRestart = useStore((s) => s.metadata?.globalSettings?.card100?.problemType === 'restart');
   const updateNodeInternals = useUpdateNodeInternals();
   const appearance_ = resolveAppearance(data.appearance, data.componentType);
   const svgItem = useStore((s) => {
@@ -253,7 +252,7 @@ const PipeNode: React.FC<NodeProps<MARSNodeData>> = ({ data, selected, id }) => 
   return (
     <>
       <NodeResizer
-        isVisible={selected && !isRestart}
+        isVisible={selected}
         minWidth={40}
         minHeight={40}
         lineStyle={{ borderColor: '#1976d2', zIndex: 10 }}

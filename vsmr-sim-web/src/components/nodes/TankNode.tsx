@@ -23,7 +23,6 @@ import SvgNodeShape from '../common/SvgNodeShape';
 const TankNode: React.FC<NodeProps<MARSNodeData>> = ({ data, selected, id }) => {
   const { componentName, componentId, componentType, status, parameters } = data;
   const updateNodeAppearance = useStore((s) => s.updateNodeAppearance);
-  const isRestart = useStore((s) => s.metadata?.globalSettings?.card100?.problemType === 'restart');
   const updateNodeInternals = useUpdateNodeInternals();
   const appearance = resolveAppearance(data.appearance, componentType);
   const svgItem = useStore((s) => {
@@ -135,7 +134,7 @@ const TankNode: React.FC<NodeProps<MARSNodeData>> = ({ data, selected, id }) => 
   return (
     <>
       <NodeResizer
-        isVisible={selected && !isRestart}
+        isVisible={selected}
         minWidth={30}
         minHeight={30}
         lineStyle={{ borderColor: '#0097A7', zIndex: 10 }}
